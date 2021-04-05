@@ -19,7 +19,6 @@ Current goals, in no particular order:
 
 # Protocol
 
-* Flatbuffers?
 * Define messages for...
     * uid
     * permission

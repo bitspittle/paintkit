@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option java_package = "bitspittle.ipc.proto";
+option java_outer_classname = "IpcProto";
+
+message Id {
+  bytes value = 1; // UUID
+}
+
+message ClientMessage {
+  // Will be sent by the client to the server. It is an error if the server doesn't respond.
+  message Command {
+    Id id = 1; // Used to pair with responses
+    bytes payload = 2;
+  }
+
+  // Sent to request a response from the server, can act as a keep alive
+  message Ping {};
+
+  // Tell the server that this client is about to stop, allowing it to close its connection immediately
+  message Disconnect {};
+
+  oneof specialized {
+    Command command = 1;
+    Ping ping = 2;
+    Disconnect disconnect = 3;
+  }
+}
+
+message ServerMessage {
+  // Replied to a command to acknowledge it and possibly send some requested data.
+  message Response {
+    Id id = 1; // Matches ID sent by command
+    bytes payload = 2;
+  }
+
+  // Sent if an error occurred while handling a command. Will cause an exception to happen on the client.
+  message Error {
+    Id id = 1;
+    string message = 2; // Raw text of some error data (usually a callstack)
+  }
+
+  // One way, async messages that can be sent anytime from server to client
+  message Event {
+    bytes payload = 1;
+  }
+
+  // Sent in response to a ping
+  message Pong {}
+
+  // Indicates that this server is going down
+  message Shutdown {
+    string message = 1;
+  }
+
+  oneof specialized {
+    Response response = 1;
+    Error error = 2;
+    Event event = 3;
+    Pong pong = 4;
+    Shutdown shutdown = 5;
+  }
+}

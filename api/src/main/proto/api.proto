@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+option java_package = "bitspittle.paintkit.api.proto";
+option java_outer_classname = "ApiProto";
+
+// Basic messages
+
+message Id {
+  bytes value = 1; // Will be converted to / from UUID
+}
+
+message Color {
+  int32 rgba = 1;
+}
+
+message Pos {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message Size {
+  uint32 w = 1;
+  uint32 h = 2;
+}
+
+message Pixel {
+  Pos pos = 1;
+  Color color = 2;
+}
+
+message Buffer {
+  Id id = 1;
+  Size size = 2;
+  repeated Pixel pixels = 3; // indexed row x col
+}
+
+message User {
+  Id id = 1;
+}
+
+// Commands, Responses, and Events
+
+message Command {
+  message UpdatePixels {
+    Id user = 1;
+    Id buffer = 2;
+    repeated Pixel pixels = 3;
+  }
+
+  oneof specialized {
+    UpdatePixels updatePixelsCommand = 1;
+  }
+}
+
+message Response {
+  message UpdatePixels {}
+
+  oneof specialized {
+    UpdatePixels updatePixelsResponse = 1;
+  }
+}
+
+message Event {
+}

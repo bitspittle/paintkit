@@ -1,24 +1,102 @@
 package bitspittle.paintkit.windows
 
 import androidx.compose.desktop.Window
-import androidx.compose.material.Text
-import androidx.compose.material.Button
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import bitspittle.paintkit.client.PaintKitClient
+import bitspittle.ipc.client.ClientMessenger
+import bitspittle.paintkit.l18n._t
+import bitspittle.paintkit.layout.CommonWidgets
+import bitspittle.paintkit.layout.Padding
+import bitspittle.paintkit.layout.Shapes
+import bitspittle.paintkit.theme.PaintKitTheme
+import kotlinx.coroutines.launch
 
-@Suppress("FunctionName") // Mimics Composables
-fun WelcomeWindow() = Window {
-    // TODO: Replace this default compose stuff with a welcome window
-    var text by remember { mutableStateOf("Hello, World!") }
+data class WindowEventsEx(
+    var onOpen: (() -> Unit)? = null,
+    var onClose: (() -> Unit)? = null,
+    var onMinimize: (() -> Unit)? = null,
+    var onMaximize: (() -> Unit)? = null,
+    var onRestore: (() -> Unit)? = null,
+    var onFocusGet: (() -> Unit)? = null,
+    var onFocusLost: (() -> Unit)? = null,
+    var onResize: ((IntSize) -> Unit)? = null,
+    var onRelocate: ((IntOffset) -> Unit)? = null
+)
 
-    MaterialTheme {
-        Button(onClick = {
-            text = "Hello, Desktop!"
-        }) {
-            Text(text)
+private fun handleClose() {}
+
+fun WelcomeWindow(navigator: WindowNavigator) = Window(
+    title = _t("welcome.window.title", _t("paintkit.title")),
+    size = IntSize(400, 100),
+    events = navigator.createEvents()
+) {
+    var showingConnectionMessage by remember { mutableStateOf(false) }
+
+    PaintKitTheme {
+        Box {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CommonWidgets.Button(_t("action.new")) { showingConnectionMessage = true }
+                CommonWidgets.LargeSpacer()
+                CommonWidgets.Button(_t("action.open"))
+                CommonWidgets.LargeSpacer()
+                CommonWidgets.Button(_t("action.join"))
+            }
+
+            if (showingConnectionMessage) {
+                ConnectingMessage(
+                    onConnected = { messenger -> navigator.enter(Window.Canvas(messenger)) },
+                    // TODO: Show error message on failure
+                    onFailed = { showingConnectionMessage = false },
+                )
+            }
         }
     }
 }
+
+@Composable
+fun ConnectingMessage(onConnected: (ClientMessenger) -> Unit, onFailed: (String) -> Unit) {
+    val connectingScope = rememberCoroutineScope()
+    connectingScope.launch {
+        try {
+            val client = PaintKitClient()
+            onConnected(Settings.debugPort?.let { port -> client.start(port) } ?: client.start())
+        }
+        catch (ex: Exception) {
+            onFailed(ex.toString())
+        }
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colors.background.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .clip(Shapes.RoundedCornerShape)
+                .background(MaterialTheme.colors.background)
+                .padding(Padding.Large)
+        ) {
+            Text(_t("welcome.connecting"), modifier = Modifier.align(Alignment.CenterVertically))
+            CommonWidgets.LargeSpacer()
+            CircularProgressIndicator()
+        }
+    }
+
+}
+

@@ -1,10 +1,8 @@
 pluginManagement {
     plugins {
-        val versionKotlin: String by settings
-        kotlin("jvm") version versionKotlin apply false
-
-        val versionCompose: String by settings
-        id("org.jetbrains.compose") version versionCompose apply false
+        kotlin("jvm") version "1.4.30"
+        id("org.jetbrains.compose") version "1.4.3"
+        id("com.google.protobuf") version "0.8.15"
     }
 
     repositories {
@@ -17,5 +15,6 @@ pluginManagement {
 rootProject.name = "paintkit"
 include("client")
 include("server")
-include("protocol")
+include("ipc")
+include("api")
 include("model")
