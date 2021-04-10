@@ -9,25 +9,24 @@ plugins {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-cli:${Versions.Kotlin.cli}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.Kotlin.coroutines}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${Versions.Kotlin.coroutines}")
+    implementation(libs.kotlin.cli)
+    implementation(libs.bundles.kotlin.coroutines)
     implementation(compose.desktop.currentOs)
 
-    implementation("com.google.protobuf:protobuf-java:${Versions.Protobuf.java}")
+    implementation(libs.google.protobuf.java)
     implementation(project(":ipc"))
     implementation(project(":api"))
 
     testImplementation(kotlin("test-junit5"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${Versions.Test.junit}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${Versions.Test.junit}")
+    testImplementation(libs.bundles.test.support)
+    testRuntimeOnly(libs.junit.engine)
 }
 
 tasks.register<Copy>("copyServerJar") {
-    dependsOn(":server:fatJar")
-    from(file("${project(":server").buildDir}/libs/server-fat.jar"))
+    dependsOn(":server:shadowJar")
+    from(file("${project(":server").buildDir}/libs/server-all.jar"))
     into(file("$projectDir/build/resources/main"))
-    rename { fileName -> fileName.replace("server-fat.jar", "server.jar") }
+    rename("server-all.jar", "server.jar")
 }
 project.tasks.getByPath("processResources").dependsOn("copyServerJar")
 

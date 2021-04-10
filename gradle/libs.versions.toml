@@ -1,0 +1,31 @@
+[versions]
+
+kotlin-coroutines = "1.4.3"
+kotlin-cli = "0.3.1"
+
+junit = "5.6.0"
+google-truth = "1.1.2"
+
+google-protobuf-java = "3.15.7"
+
+jcip-annotations = "1.0"
+
+[libraries]
+
+kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
+kotlin-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8", version.ref = "kotlin-coroutines" }
+
+google-protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "google-protobuf-java" }
+
+kotlin-cli = { module = "org.jetbrains.kotlinx:kotlinx-cli", version.ref = "kotlin-cli" }
+
+junit-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+
+google-truth = { module = "com.google.truth:truth", version.ref = "google-truth" }
+
+annotations-jcip = { module = "net.jcip:jcip-annotations", version.ref = "jcip-annotations" }
+
+[bundles]
+kotlin-coroutines = ["kotlin-coroutines-core", "kotlin-coroutines-jdk8"]
+test-support = ["junit-api", "google-truth"]

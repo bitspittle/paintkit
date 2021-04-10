@@ -6,9 +6,6 @@ plugins {
 
 sourceSets {
     main {
-        proto {
-            srcDir("src/main/proto")
-        }
         java {
             srcDir("build/generated/source/proto/main/java")
         }
@@ -17,6 +14,6 @@ sourceSets {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.Kotlin.coroutines}")
-    implementation("com.google.protobuf:protobuf-java:${Versions.Protobuf.java}")
+    implementation(libs.bundles.kotlin.coroutines)
+    implementation(libs.google.protobuf.java)
 }

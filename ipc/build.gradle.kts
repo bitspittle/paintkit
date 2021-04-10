@@ -8,9 +8,6 @@ plugins {
 
 sourceSets {
     main {
-        proto {
-            srcDir("src/main/proto")
-        }
         java {
             srcDir("build/generated/source/proto/main/java")
         }
@@ -19,16 +16,15 @@ sourceSets {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.Kotlin.coroutines}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${Versions.Kotlin.coroutines}")
-    implementation("com.google.protobuf:protobuf-java:${Versions.Protobuf.java}")
+    implementation(libs.bundles.kotlin.coroutines)
+    implementation(libs.google.protobuf.java)
 
-    compileOnly("net.jcip:jcip-annotations:${Versions.Jcip.annotations}")
+    compileOnly(libs.annotations.jcip)
 
     testImplementation(kotlin("test-junit5"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${Versions.Test.junit}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${Versions.Test.junit}")
-    testImplementation("com.google.truth:truth:${Versions.Test.truth}")
+    println(kotlin("test-junit5"))
+    testImplementation(libs.bundles.test.support)
+    testRuntimeOnly(libs.junit.engine)
 }
 
 tasks.test {

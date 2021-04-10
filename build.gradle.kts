@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.util.findInterfaceImplementation
 
 buildscript {
     dependencies {
-        classpath("com.google.protobuf:protobuf-gradle-plugin:${Versions.Protobuf.plugin}")
+        classpath("com.google.protobuf:protobuf-gradle-plugin:0.8.15")
     }
 }
 
@@ -18,7 +18,8 @@ allprojects {
 }
 
 plugins {
-    kotlin("jvm") version Versions.Kotlin.plugin apply false
-    id("org.jetbrains.compose") version Versions.Jetbrains.compose apply false
-    id("com.google.protobuf") version Versions.Protobuf.plugin apply false
+    kotlin("jvm") apply false
+    id("org.jetbrains.compose") apply false
+    id("com.google.protobuf") apply false
+    id("com.github.johnrengelman.shadow") apply false
 }
