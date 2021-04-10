@@ -6,6 +6,7 @@ import bitspittle.ipc.client.IpcClient
 import bitspittle.ipc.common.Port
 import kotlinx.coroutines.future.await
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -29,7 +30,7 @@ class PaintKitClient {
         val portFuture = CompletableFuture<Int>()
         Executors.newSingleThreadExecutor().submit {
             val serverJar = PaintKitClient::class.java.getResourceAsStream("/server.jar")!!.let { stream ->
-                createTempFile("server", ".jar").apply {
+                File.createTempFile("server", ".jar").apply {
                     appendBytes(stream.readAllBytes())
                     deleteOnExit()
                 }
