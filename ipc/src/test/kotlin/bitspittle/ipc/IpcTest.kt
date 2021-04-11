@@ -1,14 +1,11 @@
 package bitspittle.ipc
 
 import bitspittle.ipc.client.ClientHandler
-import bitspittle.ipc.client.ClientMessenger
 import bitspittle.ipc.client.IpcException
 import bitspittle.ipc.server.CommandResponder
 import bitspittle.ipc.server.ServerHandler
-import bitspittle.ipc.server.ServerMessenger
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
-import org.junit.Ignore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import java.util.concurrent.CountDownLatch
@@ -25,17 +22,23 @@ class IpcTest {
         assertThat(ipcExtension.server.isConnected).isTrue()
 
         val shutdownMessage = "The server is coming down for maintenance or something"
-        val serverShutdownLatch = CountDownLatch(1)
+        val serverShutdown = CountDownLatch(1)
+        val clientDisposed = CountDownLatch(1)
         ipcExtension.clientHandler = object : ClientHandler {
-            override fun handleEvent(event: ByteArray, messenger: ClientMessenger) = throw NotImplementedError()
+            override fun handleEvent(event: ByteArray) = throw NotImplementedError()
             override fun handleServerShutdown(message: String) {
                 assertThat(message).isEqualTo(shutdownMessage)
-                serverShutdownLatch.countDown()
+                serverShutdown.countDown()
+            }
+            override fun handleDispose() {
+                // Dispose happens after shutdown
+                serverShutdown.await()
+                clientDisposed.countDown()
             }
         }
 
         ipcExtension.server.shutdown(shutdownMessage)
-        serverShutdownLatch.await()
+        clientDisposed.await()
 
         assertThat(ipcExtension.client.isConnected).isFalse()
         assertThat(ipcExtension.server.isConnected).isFalse()
@@ -44,17 +47,23 @@ class IpcTest {
     @Test
     fun disconnectingClientLeavesServerRunning() {
         assertThat(ipcExtension.client.isConnected).isTrue()
+        assertThat(ipcExtension.server.isConnected).isTrue()
         assertThat(ipcExtension.server.numClientsConnected).isEqualTo(1)
 
-        ipcExtension.client.disconnect()
-        // Currently, no great way to get notified when a client is disconnected from the server, because it
-        // intentionally hides that information (outside of the server guts, no one should really care).
-        while (ipcExtension.server.numClientsConnected > 0) {
-            Thread.sleep(1)
+        val serverDisposed = CountDownLatch(1)
+        ipcExtension.serverHandler = object : ServerHandler {
+            override fun handleCommand(command: ByteArray, responder: CommandResponder) = throw NotImplementedError()
+            override fun handleDispose() {
+                serverDisposed.countDown()
+            }
         }
+
+        ipcExtension.client.disconnect()
+        serverDisposed.await()
 
         assertThat(ipcExtension.client.isConnected).isFalse()
         assertThat(ipcExtension.server.isConnected).isTrue()
+        assertThat(ipcExtension.server.numClientsConnected).isEqualTo(0)
     }
 
     @Test
@@ -63,14 +72,14 @@ class IpcTest {
         val fakeResponse = byteArrayOf(2)
 
         ipcExtension.serverHandler = object : ServerHandler {
-            override fun handleCommand(command: ByteArray, responder: CommandResponder, messenger: ServerMessenger) {
+            override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 assertThat(command).isEqualTo(fakeCommand)
                 responder.respond(fakeResponse)
             }
         }
 
         runBlocking {
-            val response = ipcExtension.clientMessenger.await().sendCommand(fakeCommand)
+            val response = ipcExtension.clientEnvironment.messenger.sendCommand(fakeCommand)
             assertThat(response).isEqualTo(fakeResponse)
         }
     }
@@ -81,7 +90,7 @@ class IpcTest {
         val fakeError = "I don't feel like doing work today"
 
         ipcExtension.serverHandler = object : ServerHandler {
-            override fun handleCommand(command: ByteArray, responder: CommandResponder, messenger: ServerMessenger) {
+            override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 assertThat(command).isEqualTo(fakeCommand)
                 responder.fail(fakeError)
             }
@@ -89,7 +98,7 @@ class IpcTest {
 
         runBlocking {
             try {
-                ipcExtension.clientMessenger.await().sendCommand(fakeCommand)
+                ipcExtension.clientEnvironment.messenger.sendCommand(fakeCommand)
                 fail()
             }
             catch (ex: IpcException) {
@@ -105,14 +114,14 @@ class IpcTest {
 
         val eventReceivedLatch = CountDownLatch(1)
         ipcExtension.clientHandler = object : ClientHandler {
-            override fun handleEvent(event: ByteArray, messenger: ClientMessenger) {
+            override fun handleEvent(event: ByteArray) {
                 assertThat(event).isEqualTo(fakeEvent)
                 eventReceivedLatch.countDown()
             }
         }
 
         runBlocking {
-            ipcExtension.serverMessenger.await().sendEvent(fakeEvent)
+            ipcExtension.serverEnvironment.messenger.sendEvent(fakeEvent)
         }
 
         eventReceivedLatch.await()
@@ -127,10 +136,10 @@ class IpcTest {
         val fakeResponse2 = byteArrayOf(5)
 
         ipcExtension.serverHandler = object : ServerHandler {
-            override fun handleCommand(command: ByteArray, responder: CommandResponder, messenger: ServerMessenger) {
+            override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 when {
                     command.contentEquals(fakeCommand1) -> {
-                        messenger.sendEvent(fakeEvent)
+                        ipcExtension.serverEnvironment.messenger.sendEvent(fakeEvent)
                         responder.respond(fakeResponse1)
                     }
                     command.contentEquals(fakeCommand2) -> responder.respond(fakeResponse2)
@@ -140,14 +149,14 @@ class IpcTest {
         }
         var eventReceived = false
         ipcExtension.clientHandler = object : ClientHandler {
-            override fun handleEvent(event: ByteArray, messenger: ClientMessenger) {
+            override fun handleEvent(event: ByteArray) {
                 assertThat(event).isEqualTo(fakeEvent)
                 eventReceived = true
             }
         }
 
-        runBlocking {
-            ipcExtension.clientMessenger.await().let { clientMessenger ->
+        ipcExtension.clientEnvironment.messenger.let { clientMessenger ->
+            runBlocking {
                 assertThat(clientMessenger.sendCommand(fakeCommand1)).isEqualTo(fakeResponse1)
                 assertThat(eventReceived).isTrue() // Should be sent before response arrives
                 assertThat(clientMessenger.sendCommand(fakeCommand2)).isEqualTo(fakeResponse2)

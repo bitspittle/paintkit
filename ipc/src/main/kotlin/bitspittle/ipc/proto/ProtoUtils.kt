@@ -49,6 +49,6 @@ fun ServerSocketTarget.send(serverBytes: ServerMessage) {
     send(serverBytes.toByteArray())
 }
 
-fun ServerSocketTargets.sendAll(serverBytes: ServerMessage) {
-    sendAll(serverBytes.toByteArray())
+fun ServerSocketTargets.sendAll(serverBytes: ServerMessage, filter: (ServerSocketTarget) -> Boolean = { true }) {
+    sendAll(serverBytes.toByteArray(), filter)
 }

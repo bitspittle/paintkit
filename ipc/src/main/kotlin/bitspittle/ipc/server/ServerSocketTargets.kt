@@ -15,14 +15,14 @@ class ServerSocketTargets(
     port: Port,
     private val backgroundScope: CoroutineScope,
     onPortConnected: (Port) -> Unit,
-    onClientConnected: (ServerSocketTarget) -> Unit,
+    onClientConnected: ServerSocketTargets.(ServerSocketTarget) -> Unit,
 ): AutoCloseable {
     private val serverSocket = ServerSocket(port.value).also {
         // Don't let the callback potentially block this class's progress
         backgroundScope.launch { onPortConnected(Port(it.localPort)) }
     }
 
-    private val targets = mutableListOf<ServerSocketTarget>()
+    private val targets = mutableSetOf<ServerSocketTarget>()
     val numClientsConnected get() = targets.size
 
     init {
@@ -38,9 +38,9 @@ class ServerSocketTargets(
         }
     }
 
-    fun sendAll(byteArray: ByteArray) {
+    fun sendAll(byteArray: ByteArray, filter: (ServerSocketTarget) -> Boolean = { true }) {
         synchronized(targets) {
-            targets.forEach { it.send(byteArray) }
+            targets.filter(filter).forEach { it.send(byteArray) }
         }
     }
 
