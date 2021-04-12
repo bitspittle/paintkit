@@ -19,33 +19,34 @@ class IpcServer(
     private val createServerHandler: (ServerEnvironment) -> ServerHandler,
     private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+    private class ServerMessengerBase(private val handleSend: (ServerMessage) -> Unit) : ServerMessenger {
+        override fun sendEvent(event: ByteArray) {
+            val message = buildServerMessage {
+                eventBuilder.payload = event.toByteString()
+            }
+            handleSend(message)
+        }
+    }
+
     private inner class State(port: Port, onPortConnected: (Port) -> Unit) {
         val backgroundScope = CoroutineScope(backgroundDispatcher)
         val handlerDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         val handlerScope = CoroutineScope(handlerDispatcher)
+
         @GuardedBy("itself")
         val handlers = mutableSetOf<ServerHandler>()
 
         var serverTargets: ServerSocketTargets =
             ServerSocketTargets(port, backgroundScope, onPortConnected) { serverTarget ->
-                val messenger = object : ServerMessenger {
-                    override fun sendEvent(event: ByteArray) {
-                        val message = buildServerMessage {
-                            eventBuilder.payload = event.toByteString()
-                        }
-                        serverTarget.send(message)
-                    }
-                }
-                val broadcastMessenger = object : ServerMessenger {
-                    override fun sendEvent(event: ByteArray) {
-                        val message = buildServerMessage {
-                            eventBuilder.payload = event.toByteString()
-                        }
+                val messengers = object : ServerMessengers {
+                    override val main = ServerMessengerBase { message -> serverTarget.send(message) }
+                    override val broadcastAll = ServerMessengerBase { message -> sendAll(message) }
+                    override val broadcastOthers = ServerMessengerBase { message ->
                         sendAll(message) { it !== serverTarget }
                     }
                 }
 
-                val handler = createServerHandler(ServerEnvironment(messenger, broadcastMessenger, handlerDispatcher))
+                val handler = createServerHandler(ServerEnvironment(messengers, handlerDispatcher))
                 synchronized(handlers) { handlers.add(handler) }
 
                 backgroundScope.launch {

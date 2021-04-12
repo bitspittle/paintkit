@@ -24,7 +24,9 @@ class ClientEnvironment(
  * with expensive work. See also: [ClientEnvironment.dispatcher]
  */
 interface ClientHandler {
+    /** Handle an incoming event from the server. */
     fun handleEvent(event: ByteArray)
+
     fun handleServerShutdown(message: String) {}
     fun handleDispose() {}
 }

@@ -3,11 +3,15 @@ package bitspittle.ipc
 import bitspittle.ipc.client.ClientEnvironment
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
-import bitspittle.ipc.server.*
+import bitspittle.ipc.server.CommandResponder
+import bitspittle.ipc.server.IpcServer
+import bitspittle.ipc.server.ServerEnvironment
+import bitspittle.ipc.server.ServerHandler
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CountDownLatch
 
@@ -16,6 +20,10 @@ class MultiClientTest {
         override fun equals(other: Any?): Boolean {
             return (other is ReceivedEvent &&
                     this.environment === other.environment && this.bytes.contentEquals(other.bytes))
+        }
+
+        override fun hashCode(): Int {
+            return Objects.hash(environment, bytes)
         }
     }
 
@@ -32,7 +40,7 @@ class MultiClientTest {
         }
 
         val clientEnvironments = mutableListOf<ClientEnvironment>()
-        val receivedEvents = ArrayBlockingQueue<ReceivedEvent>(2)
+        val receivedEvents = ArrayBlockingQueue<ReceivedEvent>(3)
         val createClientHandler: (ClientEnvironment) -> ClientHandler = { environment ->
             clientEnvironments.add(environment)
             object : ClientHandler {
@@ -75,23 +83,25 @@ class MultiClientTest {
         // At this point, since we sent commands, servers should all be initialized at this point too
         assertThat(serverEnvironments).hasSize(3)
 
-        // Direct messenger sends only to self
-        serverEnvironments[1].messenger.sendEvent(fakeBytes1)
+        // The main messenger sends only to self
+        serverEnvironments[1].messengers.main.sendEvent(fakeBytes1)
         assertThat(receivedEvents.take()).isEqualTo(ReceivedEvent(clientEnvironments[1], fakeBytes1))
         assertThat(receivedEvents).isEmpty()
 
-        // Broadcast messenger sends only to others
-        serverEnvironments[0].broadcastMessenger.sendEvent(fakeBytes0)
+        // Broadcast messenger that sends only to others
+        serverEnvironments[0].messengers.broadcastOthers.sendEvent(fakeBytes0)
         assertThat(listOf(receivedEvents.take(), receivedEvents.take())).containsExactly(
             ReceivedEvent(clientEnvironments[1], fakeBytes0),
             ReceivedEvent(clientEnvironments[2], fakeBytes0),
         )
         assertThat(receivedEvents).isEmpty()
 
-        serverEnvironments[2].broadcastMessenger.sendEvent(fakeBytes2)
-        assertThat(listOf(receivedEvents.take(), receivedEvents.take())).containsExactly(
+        // Broadcast messenger that sends to all
+        serverEnvironments[2].messengers.broadcastAll.sendEvent(fakeBytes2)
+        assertThat(listOf(receivedEvents.take(), receivedEvents.take(), receivedEvents.take())).containsExactly(
             ReceivedEvent(clientEnvironments[0], fakeBytes2),
             ReceivedEvent(clientEnvironments[1], fakeBytes2),
+            ReceivedEvent(clientEnvironments[2], fakeBytes2),
         )
         assertThat(receivedEvents).isEmpty()
     }

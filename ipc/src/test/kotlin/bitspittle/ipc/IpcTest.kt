@@ -26,6 +26,7 @@ class IpcTest {
         val clientDisposed = CountDownLatch(1)
         ipcExtension.clientHandler = object : ClientHandler {
             override fun handleEvent(event: ByteArray) = throw NotImplementedError()
+
             override fun handleServerShutdown(message: String) {
                 assertThat(message).isEqualTo(shutdownMessage)
                 serverShutdown.countDown()
@@ -120,10 +121,7 @@ class IpcTest {
             }
         }
 
-        runBlocking {
-            ipcExtension.serverEnvironment.messenger.sendEvent(fakeEvent)
-        }
-
+        ipcExtension.serverEnvironment.messengers.main.sendEvent(fakeEvent)
         eventReceivedLatch.await()
     }
 
@@ -139,7 +137,7 @@ class IpcTest {
             override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 when {
                     command.contentEquals(fakeCommand1) -> {
-                        ipcExtension.serverEnvironment.messenger.sendEvent(fakeEvent)
+                        ipcExtension.serverEnvironment.messengers.main.sendEvent(fakeEvent)
                         responder.respond(fakeResponse1)
                     }
                     command.contentEquals(fakeCommand2) -> responder.respond(fakeResponse2)

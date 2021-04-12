@@ -16,11 +16,17 @@ interface CommandResponder {
     fun fail(message: String)
 }
 
-class ServerEnvironment(
+interface ServerMessengers {
     /** Sends messages to the single client associated with this handler */
-    val messenger: ServerMessenger,
-    /** Sends messages to all other clients connected to the server (not ourselves). */
-    val broadcastMessenger: ServerMessenger,
+    val main: ServerMessenger
+    /** Sends messages to all clients connected to the server (including ours). */
+    val broadcastAll: ServerMessenger
+    /** Sends messages to all other clients connected to the server (excluding ours). */
+    val broadcastOthers: ServerMessenger
+}
+
+class ServerEnvironment(
+    val messengers: ServerMessengers,
     /** The dispatcher used by this handler, in case the user needs to trampoline to and back from another thread. */
     val dispatcher: CoroutineDispatcher,
 )
