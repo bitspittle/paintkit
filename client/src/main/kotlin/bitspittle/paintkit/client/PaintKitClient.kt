@@ -1,7 +1,7 @@
 package bitspittle.paintkit.client
 
+import bitspittle.ipc.client.ClientEnvironment
 import bitspittle.ipc.client.ClientHandler
-import bitspittle.ipc.client.ClientMessenger
 import bitspittle.ipc.client.IpcClient
 import bitspittle.ipc.common.Port
 import kotlinx.coroutines.future.await
@@ -14,16 +14,17 @@ import java.util.concurrent.Executors
 
 private val SERVER_PORT_REGEX = """PaintKit server is starting on port (\d+)""".toRegex()
 
-class PaintKitClient {
-    class Handler : ClientHandler {
-        override fun handleEvent(event: ByteArray, messenger: ClientMessenger) {
-            // TODO: Event handling here
-        }
+class PaintKitClient(createClientHandler: (ClientEnvironment) -> ClientHandler) {
+    private val client = IpcClient(createClientHandler)
+
+    /**
+     * Convenience method for calling the proper [start] method depending on the passed in argument.
+     */
+    suspend fun start(port: Port?) {
+        if (port == null) start() else start(port)
     }
 
-    private val client = IpcClient({ Handler() })
-
-    suspend fun start(): ClientMessenger {
+    suspend fun start() {
         val javaHome = System.getProperty("java.home")
         val adminId = UUID.randomUUID()
 
@@ -54,10 +55,10 @@ class PaintKitClient {
         }
 
         val port = Port(portFuture.await())
-        return start(port)
+        start(port)
     }
 
-    fun start(port: Port): ClientMessenger {
+    fun start(port: Port) {
         Runtime.getRuntime().addShutdownHook(Thread { client.disconnect() })
         return client.start(port.toLocalAddress())
     }

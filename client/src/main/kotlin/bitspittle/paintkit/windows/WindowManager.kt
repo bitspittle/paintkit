@@ -3,7 +3,7 @@ package bitspittle.paintkit.windows
 import androidx.compose.desktop.AppFrame
 import androidx.compose.desktop.AppManager
 import androidx.compose.desktop.WindowEvents
-import bitspittle.ipc.client.ClientMessenger
+import bitspittle.paintkit.client.Session
 import java.util.*
 import kotlin.math.min
 import kotlin.system.exitProcess
@@ -15,8 +15,8 @@ sealed class Window {
         override fun open(navigator: WindowNavigator) = WelcomeWindow(navigator)
     }
 
-    class Canvas(private val messenger: ClientMessenger) : Window() {
-        override fun open(navigator: WindowNavigator) = CanvasWindow(navigator, messenger)
+    class Canvas(private val session: Session) : Window() {
+        override fun open(navigator: WindowNavigator) = CanvasWindow(navigator, session)
     }
 }
 

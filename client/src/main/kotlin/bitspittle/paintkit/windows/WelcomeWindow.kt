@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import bitspittle.paintkit.client.PaintKitClient
 import bitspittle.ipc.client.ClientMessenger
+import bitspittle.paintkit.client.ClientHandlerImpl
+import bitspittle.paintkit.client.Session
 import bitspittle.paintkit.l18n._t
 import bitspittle.paintkit.layout.CommonWidgets
 import bitspittle.paintkit.layout.Padding
@@ -58,7 +60,7 @@ fun WelcomeWindow(navigator: WindowNavigator) = Window(
 
             if (showingConnectionMessage) {
                 ConnectingMessage(
-                    onConnected = { messenger -> navigator.enter(Window.Canvas(messenger)) },
+                    onConnected = { session -> navigator.enter(Window.Canvas(session)) },
                     // TODO: Show error message on failure
                     onFailed = { showingConnectionMessage = false },
                 )
@@ -68,12 +70,16 @@ fun WelcomeWindow(navigator: WindowNavigator) = Window(
 }
 
 @Composable
-fun ConnectingMessage(onConnected: (ClientMessenger) -> Unit, onFailed: (String) -> Unit) {
+fun ConnectingMessage(onConnected: (Session) -> Unit, onFailed: (String) -> Unit) {
     val connectingScope = rememberCoroutineScope()
     connectingScope.launch {
         try {
-            val client = PaintKitClient()
-            onConnected(Settings.debugPort?.let { port -> client.start(port) } ?: client.start())
+            val client = PaintKitClient { environment ->
+                val handler = ClientHandlerImpl(environment)
+                onConnected(handler)
+                handler
+            }
+            client.start(Settings.debugPort)
         }
         catch (ex: Exception) {
             onFailed(ex.toString())
