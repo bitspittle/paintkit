@@ -1,7 +1,7 @@
 package bitspittle.paintkit.client
 
 import androidx.compose.ui.unit.IntOffset
-import bitspittle.ipc.client.ClientEnvironment
+import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientHandler
 
 /**
@@ -27,9 +27,9 @@ abstract class Session {
     abstract fun drawLine(p1: IntOffset, p2: IntOffset)
 }
 
-internal class ClientHandlerImpl(private val environment: ClientEnvironment) : ClientHandler, Session() {
+internal class ClientHandlerImpl(private val ctx: ClientContext) : ClientHandler, Session() {
     override fun disconnect() {
-        environment.messenger.disconnect()
+        ctx.connection.disconnect()
     }
 
     override fun handleEvent(event: ByteArray) {

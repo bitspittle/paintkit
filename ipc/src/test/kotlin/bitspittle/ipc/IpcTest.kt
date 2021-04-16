@@ -80,7 +80,7 @@ class IpcTest {
         }
 
         runBlocking {
-            val response = ipcExtension.clientEnvironment.messenger.sendCommand(fakeCommand)
+            val response = ipcExtension.clientContext.connection.sendCommand(fakeCommand)
             assertThat(response).isEqualTo(fakeResponse)
         }
     }
@@ -99,7 +99,7 @@ class IpcTest {
 
         runBlocking {
             try {
-                ipcExtension.clientEnvironment.messenger.sendCommand(fakeCommand)
+                ipcExtension.clientContext.connection.sendCommand(fakeCommand)
                 fail()
             }
             catch (ex: IpcException) {
@@ -121,7 +121,7 @@ class IpcTest {
             }
         }
 
-        ipcExtension.serverEnvironment.messengers.main.sendEvent(fakeEvent)
+        ipcExtension.serverContext.connection.sendEvent(fakeEvent)
         eventReceivedLatch.await()
     }
 
@@ -137,7 +137,7 @@ class IpcTest {
             override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 when {
                     command.contentEquals(fakeCommand1) -> {
-                        ipcExtension.serverEnvironment.messengers.main.sendEvent(fakeEvent)
+                        ipcExtension.serverContext.connection.sendEvent(fakeEvent)
                         responder.respond(fakeResponse1)
                     }
                     command.contentEquals(fakeCommand2) -> responder.respond(fakeResponse2)
@@ -153,7 +153,7 @@ class IpcTest {
             }
         }
 
-        ipcExtension.clientEnvironment.messenger.let { clientMessenger ->
+        ipcExtension.clientContext.connection.let { clientMessenger ->
             runBlocking {
                 assertThat(clientMessenger.sendCommand(fakeCommand1)).isEqualTo(fakeResponse1)
                 assertThat(eventReceived).isTrue() // Should be sent before response arrives

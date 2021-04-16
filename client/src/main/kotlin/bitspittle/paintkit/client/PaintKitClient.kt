@@ -1,5 +1,6 @@
 package bitspittle.paintkit.client
 
+import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientEnvironment
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
@@ -14,7 +15,7 @@ import java.util.concurrent.Executors
 
 private val SERVER_PORT_REGEX = """PaintKit server is starting on port (\d+)""".toRegex()
 
-class PaintKitClient(createClientHandler: (ClientEnvironment) -> ClientHandler) {
+class PaintKitClient(createClientHandler: (ClientContext) -> ClientHandler) {
     private val client = IpcClient(createClientHandler)
 
     /**

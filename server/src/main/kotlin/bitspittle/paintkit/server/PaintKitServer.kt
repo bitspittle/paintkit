@@ -2,20 +2,17 @@ package bitspittle.paintkit.server
 
 import Settings
 import bitspittle.ipc.common.Port
-import bitspittle.ipc.server.CommandResponder
-import bitspittle.ipc.server.IpcServer
-import bitspittle.ipc.server.ServerEnvironment
-import bitspittle.ipc.server.ServerHandler
+import bitspittle.ipc.server.*
 import kotlinx.coroutines.delay
 
 class PaintKitServer {
-    private class Handler(private val environment: ServerEnvironment) : ServerHandler {
+    private class Handler(private val ctx: ServerContext) : ServerHandler {
         override fun handleCommand(command: ByteArray, responder: CommandResponder) {
             // TODO: Handle command
         }
     }
 
-    private val server = IpcServer({ environment -> Handler(environment) })
+    private val server = IpcServer({ ctx -> Handler(ctx) })
     suspend fun run(port: Port, onPortConnected: (Port) -> Unit) {
         server.start(port, onPortConnected)
 

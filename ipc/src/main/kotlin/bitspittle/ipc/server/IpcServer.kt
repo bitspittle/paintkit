@@ -16,18 +16,9 @@ import java.util.concurrent.Executors
 
 @ThreadSafe
 class IpcServer(
-    private val createServerHandler: (ServerEnvironment) -> ServerHandler,
+    private val createServerHandler: (ServerContext) -> ServerHandler,
     private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-    private class ServerMessengerBase(private val handleSend: (ServerMessage) -> Unit) : ServerMessenger {
-        override fun sendEvent(event: ByteArray) {
-            val message = buildServerMessage {
-                eventBuilder.payload = event.toByteString()
-            }
-            handleSend(message)
-        }
-    }
-
     private inner class State(port: Port, onPortConnected: (Port) -> Unit) {
         val backgroundScope = CoroutineScope(backgroundDispatcher)
         val handlerDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -38,15 +29,28 @@ class IpcServer(
 
         var serverTargets: ServerSocketTargets =
             ServerSocketTargets(port, backgroundScope, onPortConnected) { serverTarget ->
-                val messengers = object : ServerMessengers {
-                    override val main = ServerMessengerBase { message -> serverTarget.send(message) }
-                    override val broadcastAll = ServerMessengerBase { message -> sendAll(message) }
-                    override val broadcastOthers = ServerMessengerBase { message ->
-                        sendAll(message) { it !== serverTarget }
+                val connection = object : ServerConnection {
+                    override fun sendEvent(event: ByteArray) {
+                        serverTarget.send(buildServerMessage {
+                            eventBuilder.payload = event.toByteString()
+                        })
+                    }
+
+                    override fun disconnect() {
+                        handleDisconnect(serverTarget)
                     }
                 }
 
-                val handler = createServerHandler(ServerEnvironment(messengers, handlerDispatcher))
+
+                val handler = createServerHandler(
+                    ServerContext(object : ServerEnvironment {
+                        override val dispatcher = handlerDispatcher
+                        override fun shutdown(message: String) {
+                            this@IpcServer.shutdown(message)
+                        }
+                    }, connection)
+                )
+
                 synchronized(handlers) { handlers.add(handler) }
 
                 backgroundScope.launch {
@@ -139,11 +143,11 @@ class IpcServer(
         }
     }
 
-    fun shutdown(message: String = "Server stopped") {
+    fun shutdown(message: String = "") {
         synchronized(stateLock) {
             state?.serverTargets?.sendAll(buildServerMessage {
                 shutdownBuilder.apply {
-                    this.message = message
+                    this.message = message.takeIf { it.isNotBlank() } ?: "Server was stopped (no reason given)"
                 }
             })
         }

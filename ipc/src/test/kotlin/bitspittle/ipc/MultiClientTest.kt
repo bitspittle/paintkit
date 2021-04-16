@@ -1,12 +1,10 @@
 package bitspittle.ipc
 
+import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientEnvironment
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
-import bitspittle.ipc.server.CommandResponder
-import bitspittle.ipc.server.IpcServer
-import bitspittle.ipc.server.ServerEnvironment
-import bitspittle.ipc.server.ServerHandler
+import bitspittle.ipc.server.*
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -16,22 +14,22 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CountDownLatch
 
 class MultiClientTest {
-    private class ReceivedEvent(val environment: ClientEnvironment, val bytes: ByteArray) {
+    private class ReceivedEvent(val context: ClientContext, val bytes: ByteArray) {
         override fun equals(other: Any?): Boolean {
             return (other is ReceivedEvent &&
-                    this.environment === other.environment && this.bytes.contentEquals(other.bytes))
+                    this.context === other.context && this.bytes.contentEquals(other.bytes))
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(environment, bytes)
+            return Objects.hash(context, bytes)
         }
     }
 
     @Test
     fun canCreateMultipleClients() {
-        val serverEnvironments = mutableListOf<ServerEnvironment>()
-        val createServerHandler: (ServerEnvironment) -> ServerHandler = { environment ->
-            serverEnvironments.add(environment)
+        val serverContexts = mutableListOf<ServerContext>()
+        val createServerHandler: (ServerContext) -> ServerHandler = { context ->
+            serverContexts.add(context)
             object : ServerHandler {
                 override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                     responder.respond(command) // Just echo bytes back to mimic a real response
@@ -39,13 +37,13 @@ class MultiClientTest {
             }
         }
 
-        val clientEnvironments = mutableListOf<ClientEnvironment>()
-        val receivedEvents = ArrayBlockingQueue<ReceivedEvent>(3)
-        val createClientHandler: (ClientEnvironment) -> ClientHandler = { environment ->
-            clientEnvironments.add(environment)
+        val clientContexts = mutableListOf<ClientContext>()
+        val receivedEvents = ArrayBlockingQueue<ReceivedEvent>(1)
+        val createClientHandler: (ClientContext) -> ClientHandler = { context ->
+            clientContexts.add(context)
             object : ClientHandler {
                 override fun handleEvent(event: ByteArray) {
-                    receivedEvents.add(ReceivedEvent(environment, event))
+                    receivedEvents.add(ReceivedEvent(context, event))
                 }
             }
         }
@@ -60,7 +58,7 @@ class MultiClientTest {
             clients[0].start(address)
             clients[1].start(address)
             clients[2].start(address)
-            assertThat(clientEnvironments).hasSize(3)
+            assertThat(clientContexts).hasSize(3)
 
             clientsStarted.countDown()
         }
@@ -70,39 +68,30 @@ class MultiClientTest {
         val fakeBytes1 = byteArrayOf(1)
         val fakeBytes2 = byteArrayOf(2)
 
-        assertThat(clientEnvironments[0]).isNotSameInstanceAs(clientEnvironments[1])
-        assertThat(clientEnvironments[1]).isNotSameInstanceAs(clientEnvironments[2])
-        assertThat(clientEnvironments[2]).isNotSameInstanceAs(clientEnvironments[0])
+        assertThat(clientContexts[0]).isNotSameInstanceAs(clientContexts[1])
+        assertThat(clientContexts[1]).isNotSameInstanceAs(clientContexts[2])
+        assertThat(clientContexts[2]).isNotSameInstanceAs(clientContexts[0])
 
         runBlocking {
-            assertThat(clientEnvironments[0].messenger.sendCommand(fakeBytes0)).isEqualTo(fakeBytes0)
-            assertThat(clientEnvironments[1].messenger.sendCommand(fakeBytes1)).isEqualTo(fakeBytes1)
-            assertThat(clientEnvironments[2].messenger.sendCommand(fakeBytes2)).isEqualTo(fakeBytes2)
+            assertThat(clientContexts[0].connection.sendCommand(fakeBytes0)).isEqualTo(fakeBytes0)
+            assertThat(clientContexts[1].connection.sendCommand(fakeBytes1)).isEqualTo(fakeBytes1)
+            assertThat(clientContexts[2].connection.sendCommand(fakeBytes2)).isEqualTo(fakeBytes2)
         }
 
         // At this point, since we sent commands, servers should all be initialized at this point too
-        assertThat(serverEnvironments).hasSize(3)
+        assertThat(serverContexts).hasSize(3)
 
         // The main messenger sends only to self
-        serverEnvironments[1].messengers.main.sendEvent(fakeBytes1)
-        assertThat(receivedEvents.take()).isEqualTo(ReceivedEvent(clientEnvironments[1], fakeBytes1))
+        serverContexts[1].connection.sendEvent(fakeBytes1)
+        assertThat(receivedEvents.take()).isEqualTo(ReceivedEvent(clientContexts[1], fakeBytes1))
         assertThat(receivedEvents).isEmpty()
 
-        // Broadcast messenger that sends only to others
-        serverEnvironments[0].messengers.broadcastOthers.sendEvent(fakeBytes0)
-        assertThat(listOf(receivedEvents.take(), receivedEvents.take())).containsExactly(
-            ReceivedEvent(clientEnvironments[1], fakeBytes0),
-            ReceivedEvent(clientEnvironments[2], fakeBytes0),
-        )
+        serverContexts[0].connection.sendEvent(fakeBytes0)
+        assertThat(receivedEvents.take()).isEqualTo(ReceivedEvent(clientContexts[0], fakeBytes0))
         assertThat(receivedEvents).isEmpty()
 
-        // Broadcast messenger that sends to all
-        serverEnvironments[2].messengers.broadcastAll.sendEvent(fakeBytes2)
-        assertThat(listOf(receivedEvents.take(), receivedEvents.take(), receivedEvents.take())).containsExactly(
-            ReceivedEvent(clientEnvironments[0], fakeBytes2),
-            ReceivedEvent(clientEnvironments[1], fakeBytes2),
-            ReceivedEvent(clientEnvironments[2], fakeBytes2),
-        )
+        serverContexts[2].connection.sendEvent(fakeBytes2)
+        assertThat(receivedEvents.take()).isEqualTo(ReceivedEvent(clientContexts[2], fakeBytes2))
         assertThat(receivedEvents).isEmpty()
     }
 }

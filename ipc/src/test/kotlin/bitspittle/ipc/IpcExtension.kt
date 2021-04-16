@@ -1,6 +1,6 @@
 package bitspittle.ipc
 
-import bitspittle.ipc.client.ClientEnvironment
+import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
 import bitspittle.ipc.server.*
@@ -18,13 +18,13 @@ class IpcExtension : BeforeEachCallback, AfterEachCallback {
     /** If set, will receive ClientHandler messages */
     var clientHandler: ClientHandler? = null
 
-    private val _clientEnvironment = CompletableDeferred<ClientEnvironment>()
-    private val _serverEnvironment = CompletableDeferred<ServerEnvironment>()
-    val clientEnvironment get() = runBlocking { _clientEnvironment.await() }
-    val serverEnvironment get() = runBlocking { _serverEnvironment.await() }
+    private val _clientContext = CompletableDeferred<ClientContext>()
+    private val _serverContext = CompletableDeferred<ServerContext>()
+    val clientContext get() = runBlocking { _clientContext.await() }
+    val serverContext get() = runBlocking { _serverContext.await() }
 
     val server = IpcServer(createServerHandler = { environment ->
-        _serverEnvironment.complete(environment)
+        _serverContext.complete(environment)
         object : ServerHandler {
             override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 serverHandler?.handleCommand(command, responder)
@@ -37,7 +37,7 @@ class IpcExtension : BeforeEachCallback, AfterEachCallback {
 
     // "Disable" ping during tests
     val client = IpcClient(pingFrequency = Duration.ofNanos(Long.MAX_VALUE), createClientHandler = { environment ->
-        _clientEnvironment.complete(environment)
+        _clientContext.complete(environment)
         object : ClientHandler {
             override fun handleEvent(event: ByteArray) {
                 clientHandler?.handleEvent(event)

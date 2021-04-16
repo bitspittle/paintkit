@@ -1,5 +1,6 @@
 package bitspittle.paintkit.windows
 
+import Settings
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,11 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import bitspittle.paintkit.client.PaintKitClient
-import bitspittle.ipc.client.ClientMessenger
 import bitspittle.paintkit.client.ClientHandlerImpl
+import bitspittle.paintkit.client.PaintKitClient
 import bitspittle.paintkit.client.Session
 import bitspittle.paintkit.l18n._t
 import bitspittle.paintkit.layout.CommonWidgets
@@ -60,8 +59,8 @@ fun ConnectingMessage(onConnected: (Session) -> Unit, onFailed: (String) -> Unit
     val connectingScope = rememberCoroutineScope()
     connectingScope.launch {
         try {
-            val client = PaintKitClient { environment ->
-                val handler = ClientHandlerImpl(environment)
+            val client = PaintKitClient { ctx ->
+                val handler = ClientHandlerImpl(ctx)
                 onConnected(handler)
                 handler
             }

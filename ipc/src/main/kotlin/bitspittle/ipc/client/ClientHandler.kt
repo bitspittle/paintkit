@@ -2,19 +2,21 @@ package bitspittle.ipc.client
 
 import kotlinx.coroutines.CoroutineDispatcher
 
-interface ClientMessenger {
+interface ClientConnection {
     /** Send a command to the client and suspend until we receive a response. */
     suspend fun sendCommand(command: ByteArray): ByteArray
-
     /** Disconnect this client immediately. */
     fun disconnect()
 }
 
 class ClientEnvironment(
-    /** A messenger used for communicating to the server. */
-    val messenger: ClientMessenger,
     /** The dispatcher used by this handler, in case the user needs to trampoline to and back from another thread. */
     val dispatcher: CoroutineDispatcher,
+)
+
+class ClientContext(
+    val environment: ClientEnvironment,
+    val connection: ClientConnection,
 )
 
 /**

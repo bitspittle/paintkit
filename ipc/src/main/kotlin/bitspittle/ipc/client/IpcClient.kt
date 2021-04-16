@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
 
 @ThreadSafe
 class IpcClient(
-    private val createClientHandler: (ClientEnvironment) -> ClientHandler,
+    private val createClientHandler: (ClientContext) -> ClientHandler,
     private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val pingFrequency: Duration = Duration.ofSeconds(30)
 ) {
@@ -31,7 +31,7 @@ class IpcClient(
         val handler: ClientHandler
 
         init {
-            val messenger = object : ClientMessenger {
+            val connection = object : ClientConnection {
                 override suspend fun sendCommand(command: ByteArray): ByteArray {
                     val id = UUID.randomUUID().toId()
                     val responseFuture = CompletableFuture<ByteArray>()
@@ -52,7 +52,7 @@ class IpcClient(
                 }
             }
 
-            handler = createClientHandler(ClientEnvironment(messenger, handlerDispatcher))
+            handler = createClientHandler(ClientContext(ClientEnvironment(handlerDispatcher), connection))
 
             backgroundScope.launch {
                 clientTarget.received
