@@ -23,20 +23,6 @@ import bitspittle.paintkit.layout.Shapes
 import bitspittle.paintkit.theme.PaintKitTheme
 import kotlinx.coroutines.launch
 
-data class WindowEventsEx(
-    var onOpen: (() -> Unit)? = null,
-    var onClose: (() -> Unit)? = null,
-    var onMinimize: (() -> Unit)? = null,
-    var onMaximize: (() -> Unit)? = null,
-    var onRestore: (() -> Unit)? = null,
-    var onFocusGet: (() -> Unit)? = null,
-    var onFocusLost: (() -> Unit)? = null,
-    var onResize: ((IntSize) -> Unit)? = null,
-    var onRelocate: ((IntOffset) -> Unit)? = null
-)
-
-private fun handleClose() {}
-
 fun WelcomeWindow(navigator: WindowNavigator) = Window(
     title = _t("welcome.window.title", _t("paintkit.title")),
     size = IntSize(400, 100),
