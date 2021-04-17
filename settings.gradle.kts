@@ -41,5 +41,6 @@ rootProject.name = "paintkit"
 include("client")
 include("server")
 include("ipc")
+include("messagebus")
 include("api")
 include("model")
