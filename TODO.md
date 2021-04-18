@@ -51,6 +51,11 @@ Current goals, in no particular order:
     * Receiver can handle commands, must respond with a response
     * Receiver can send events anytime
     
+# IPC
+
+* Should automatically respond with a failure if an exception is thrown?
+* Should kill the IPC connection if a responder is GC'ed without having been used?
+
 # Settings
 
 * Stored in ~/.paintkit/

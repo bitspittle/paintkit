@@ -1,33 +1,35 @@
 package bitspittle.paintkit.client
 
-import androidx.compose.ui.unit.IntOffset
+import bitspittle.ipc.client.ClientConnection
 import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientHandler
+import bitspittle.paintkit.api.proto.ApiProto
+import bitspittle.paintkit.api.proto.toProto
+import bitspittle.paintkit.api.proto.toUUID
+import bitspittle.paintkit.model.graphics.Size
+import com.google.protobuf.MessageLite
+import java.io.File
+import java.util.*
 
 /**
  * Represents the entire state of an active session (canvas, user configs, history, layers, etc., plus a connection to
  * a backing server.)
  */
-abstract class Session {
-    fun withRecording(block: () -> Unit) {
-        beginRecording()
-        try {
-            block()
-        }
-        finally {
-            endRecording()
-        }
-    }
+interface Session {
+    fun disconnect()
 
-    abstract fun disconnect()
+    val canvases: List<CanvasState>
 
-    abstract fun beginRecording()
-    abstract fun endRecording()
-
-    abstract fun drawLine(p1: IntOffset, p2: IntOffset)
+    suspend fun createCanvas(size: Size): CanvasState
 }
 
-internal class ClientHandlerImpl(private val ctx: ClientContext) : ClientHandler, Session() {
+class CanvasState(val id: UUID) {
+    var file: File? = null
+}
+
+internal class ClientHandlerImpl(val userId: UUID, private val ctx: ClientContext) : ClientHandler, Session {
+    override val canvases = mutableListOf<CanvasState>()
+
     override fun disconnect() {
         ctx.connection.disconnect()
     }
@@ -36,14 +38,21 @@ internal class ClientHandlerImpl(private val ctx: ClientContext) : ClientHandler
         // TODO: handle events
     }
 
-    override fun beginRecording() {
-        println("Begin recording")
+    override suspend fun createCanvas(size: Size): CanvasState {
+        return ctx.connection.sendCommand {
+            createCanvasCommand = ApiProto.Command.CreateCanvas.newBuilder()
+                .setUserId(userId.toProto())
+                .setSize(size.toProto())
+                .build()
+        }.let { response ->
+            CanvasState(response.createCanvasResponse.canvasId.toUUID()).also {
+                canvases.add(it)
+            }
+        }
     }
-    override fun endRecording() {
-        println("End recording")
-    }
+}
 
-    override fun drawLine(p1: IntOffset, p2: IntOffset) {
-        println("Drawing line from $p1 -> $p2")
-    }
+private suspend fun ClientConnection.sendCommand(init: ApiProto.Command.Builder.() -> Unit): ApiProto.Response {
+    val command = ApiProto.Command.newBuilder().apply(init).build()
+    return sendCommand(command.toByteArray()).let { bytes -> ApiProto.Response.parseFrom(bytes) }
 }

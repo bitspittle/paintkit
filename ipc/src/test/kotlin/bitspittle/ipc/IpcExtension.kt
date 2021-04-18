@@ -4,6 +4,7 @@ import bitspittle.ipc.client.ClientContext
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
 import bitspittle.ipc.server.*
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.extension.AfterEachCallback
@@ -23,8 +24,8 @@ class IpcExtension : BeforeEachCallback, AfterEachCallback {
     val clientContext get() = runBlocking { _clientContext.await() }
     val serverContext get() = runBlocking { _serverContext.await() }
 
-    val server = IpcServer(createServerHandler = { environment ->
-        _serverContext.complete(environment)
+    val server = IpcServer(createServerHandler = { ctx ->
+        _serverContext.complete(ctx)
         object : ServerHandler {
             override fun handleCommand(command: ByteArray, responder: CommandResponder) {
                 serverHandler?.handleCommand(command, responder)
@@ -36,8 +37,8 @@ class IpcExtension : BeforeEachCallback, AfterEachCallback {
     })
 
     // "Disable" ping during tests
-    val client = IpcClient(pingFrequency = Duration.ofNanos(Long.MAX_VALUE), createClientHandler = { environment ->
-        _clientContext.complete(environment)
+    val client = IpcClient(pingFrequency = Duration.ofNanos(Long.MAX_VALUE), createClientHandler = { ctx ->
+        _clientContext.complete(ctx)
         object : ClientHandler {
             override fun handleEvent(event: ByteArray) {
                 clientHandler?.handleEvent(event)

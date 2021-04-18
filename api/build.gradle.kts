@@ -16,4 +16,5 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(libs.bundles.kotlin.coroutines)
     implementation(libs.google.protobuf.java)
+    implementation(project(":model"))
 }

@@ -1,7 +1,6 @@
 package bitspittle.paintkit.client
 
 import bitspittle.ipc.client.ClientContext
-import bitspittle.ipc.client.ClientEnvironment
 import bitspittle.ipc.client.ClientHandler
 import bitspittle.ipc.client.IpcClient
 import bitspittle.ipc.common.Port
@@ -19,15 +18,10 @@ class PaintKitClient(createClientHandler: (ClientContext) -> ClientHandler) {
     private val client = IpcClient(createClientHandler)
 
     /**
-     * Convenience method for calling the proper [start] method depending on the passed in argument.
+     * Create our own server and connect to it.
      */
-    suspend fun start(port: Port?) {
-        if (port == null) start() else start(port)
-    }
-
-    suspend fun start() {
+    suspend fun start(adminId: UUID) {
         val javaHome = System.getProperty("java.home")
-        val adminId = UUID.randomUUID()
 
         val portFuture = CompletableFuture<Int>()
         Executors.newSingleThreadExecutor().submit {
@@ -59,6 +53,9 @@ class PaintKitClient(createClientHandler: (ClientContext) -> ClientHandler) {
         start(port)
     }
 
+    /**
+     * Connect to a server that's already up and running.
+     */
     fun start(port: Port) {
         Runtime.getRuntime().addShutdownHook(Thread { client.disconnect() })
         return client.start(port.toLocalAddress())

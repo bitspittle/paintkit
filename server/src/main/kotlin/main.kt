@@ -46,6 +46,7 @@ fun main(args: Array<String>) {
     runBlocking {
         PaintKitServer().run(port) { port ->
             println("PaintKit server is starting on port $port, waiting for admin $userId")
+            println("Will shut down if there is ever a period of ${Settings.waitFor.toSeconds()} seconds with no clients connected.")
         }
     }
 }

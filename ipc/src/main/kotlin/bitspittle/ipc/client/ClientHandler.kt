@@ -1,10 +1,15 @@
 package bitspittle.ipc.client
 
 import kotlinx.coroutines.CoroutineDispatcher
+import java.time.Duration
 
 interface ClientConnection {
     /** Send a command to the client and suspend until we receive a response. */
     suspend fun sendCommand(command: ByteArray): ByteArray
+
+    /** See how long the round trip is from client to server and back. */
+    suspend fun ping(): Duration
+
     /** Disconnect this client immediately. */
     fun disconnect()
 }

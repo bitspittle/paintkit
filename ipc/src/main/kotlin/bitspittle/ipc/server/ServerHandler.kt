@@ -23,12 +23,12 @@ interface CommandResponder {
 /**
  * Class which represents the overall state of the server (shared across all connections).
  */
-interface ServerEnvironment {
+abstract class ServerEnvironment(
     /** The dispatcher used by this handler, in case the user needs to trampoline to and back from another thread. */
     val dispatcher: CoroutineDispatcher
-
+) {
     /** Bring the server down, ending / disposing all active connections in the process. */
-    fun shutdown(message: String)
+    abstract fun shutdown(message: String)
 }
 
 class ServerContext(

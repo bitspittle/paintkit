@@ -15,6 +15,9 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 
+/**
+ * @param createClientHandler A factory callback which should create the [ClientHandler] and *should not block*.
+ */
 @ThreadSafe
 class IpcClient(
     private val createClientHandler: (ClientContext) -> ClientHandler,
@@ -28,6 +31,7 @@ class IpcClient(
         val handlerScope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
 
         val responseFutures = mutableMapOf<IpcProto.Id, CompletableFuture<ByteArray>>()
+        val pingFutures = mutableMapOf<IpcProto.Id, CompletableFuture<Unit>>()
         val handler: ClientHandler
 
         init {
@@ -47,12 +51,29 @@ class IpcClient(
                     return responseFuture.await()
                 }
 
+                override suspend fun ping(): Duration {
+                    val id = UUID.randomUUID().toId()
+                    val pingFuture = CompletableFuture<Unit>()
+                    pingFutures[id] = pingFuture
+                    val startTime = System.nanoTime()
+                    clientTarget.send(buildClientMessage {
+                        ping = ClientMessage.Ping.newBuilder().setId(id).build()
+                    })
+                    pingFuture.await()
+                    val endTime = System.nanoTime()
+                    return Duration.ofNanos(endTime - startTime)
+                }
+
                 override fun disconnect() {
                     this@IpcClient.disconnect()
                 }
             }
 
-            handler = createClientHandler(ClientContext(ClientEnvironment(handlerDispatcher), connection))
+            handler = runBlocking {
+                withContext(handlerDispatcher) {
+                    createClientHandler(ClientContext(ClientEnvironment(handlerDispatcher), connection))
+                }
+            }
 
             backgroundScope.launch {
                 clientTarget.received
@@ -73,7 +94,7 @@ class IpcClient(
                                 }
 
                             ServerMessage.SpecializedCase.PONG -> {
-                                // No-op for now, ping/pong just used as a keep alive
+                                pingFutures.remove(serverMessage.pong.id)!!.complete(Unit)
                             }
 
                             ServerMessage.SpecializedCase.SHUTDOWN -> {
@@ -92,9 +113,7 @@ class IpcClient(
             backgroundScope.launch {
                 while (true) {
                     delay(pingFrequency.toMillis())
-                    clientTarget.send(buildClientMessage {
-                        ping = ClientMessage.Ping.getDefaultInstance()
-                    })
+                    connection.ping()
                 }
             }
         }

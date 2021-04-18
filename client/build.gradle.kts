@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.google.protobuf.java)
     implementation(project(":ipc"))
     implementation(project(":api"))
+    implementation(project(":model"))
 
     testImplementation(kotlin("test-junit5"))
     testImplementation(libs.bundles.test.support)

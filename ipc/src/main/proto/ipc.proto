@@ -14,8 +14,10 @@ message ClientMessage {
     bytes payload = 2;
   }
 
-  // Sent to request a response from the server, can act as a keep alive
-  message Ping {};
+  // Sent to request a response from the server, can also act as a keep alive
+  message Ping {
+    Id id = 1;
+  };
 
   // Tell the server that this client is about to stop, allowing it to close its connection immediately
   message Disconnect {};
@@ -46,7 +48,9 @@ message ServerMessage {
   }
 
   // Sent in response to a ping
-  message Pong {}
+  message Pong {
+    Id id = 1; // Matches ID sent by ping
+  }
 
   // Indicates that this server is going down
   message Shutdown {

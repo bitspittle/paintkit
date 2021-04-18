@@ -13,7 +13,7 @@ message Color {
   int32 rgba = 1;
 }
 
-message Pos {
+message Pt {
   int32 x = 1;
   int32 y = 2;
 }
@@ -24,39 +24,59 @@ message Size {
 }
 
 message Pixel {
-  Pos pos = 1;
+  Pt pt = 1;
   Color color = 2;
 }
 
-message Buffer {
+message Image {
   Id id = 1;
   Size size = 2;
-  repeated Pixel pixels = 3; // indexed row x col
+  repeated Pixel pixels = 3;
 }
 
-message User {
+message Canvas {
   Id id = 1;
+  repeated Image images = 2;
 }
 
 // Commands, Responses, and Events
 
 message Command {
+  message CreateCanvas {
+    Id userId = 1;
+    Size size = 2;
+  }
+
+  message DeleteCanvas {
+    Id userId = 1; // Used for permissions
+    Id canvasId = 2;
+  }
+
   message UpdatePixels {
-    Id user = 1;
-    Id buffer = 2;
+    Id userId = 1;
+    Id imageId = 2;
     repeated Pixel pixels = 3;
   }
 
   oneof specialized {
-    UpdatePixels updatePixelsCommand = 1;
+    CreateCanvas createCanvasCommand = 1;
+    DeleteCanvas deleteCanvasCommand = 2;
+    UpdatePixels updatePixelsCommand = 3;
   }
 }
 
 message Response {
+  message CreateCanvas {
+    Id canvasId = 1;
+    Id imageId = 2; // New canvas starts with a single image inside it
+  }
+  message DeleteCanvas {}
   message UpdatePixels {}
 
   oneof specialized {
-    UpdatePixels updatePixelsResponse = 1;
+    CreateCanvas createCanvasResponse = 1;
+    DeleteCanvas deleteCanvasResponse = 2;
+    UpdatePixels updatePixelsResponse = 3;
   }
 }
 

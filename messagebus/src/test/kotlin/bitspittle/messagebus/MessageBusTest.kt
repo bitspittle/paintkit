@@ -198,7 +198,7 @@ class MessageBusTest {
 
         messageBus.getSender(TriggerListener.TOPIC).onTriggered(1)
 
-        println(order)
+        // Order isn't guaranteed, but the first wave of messages will all get handled before second wave goes out
         assertThat(order.subList(0, 3)).containsExactly(1, 2, 3)
         assertThat(order.subList(3, 5)).containsExactly(1, 2)
     }

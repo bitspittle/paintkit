@@ -108,6 +108,13 @@ class IpcTest {
         }
     }
 
+    @Test
+    fun ping() {
+        runBlocking {
+            val duration = ipcExtension.clientContext.connection.ping()
+            assertThat(duration.toNanos()).isGreaterThan(0)
+        }
+    }
 
     @Test
     fun sendEvent() {

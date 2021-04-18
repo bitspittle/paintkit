@@ -41,16 +41,17 @@ class IpcServer(
                     }
                 }
 
-
-                val handler = createServerHandler(
-                    ServerContext(object : ServerEnvironment {
-                        override val dispatcher = handlerDispatcher
-                        override fun shutdown(message: String) {
-                            this@IpcServer.shutdown(message)
-                        }
-                    }, connection)
-                )
-
+                val handler = runBlocking {
+                    withContext(handlerDispatcher) {
+                        createServerHandler(
+                            ServerContext(object : ServerEnvironment(handlerDispatcher) {
+                                override fun shutdown(message: String) {
+                                    this@IpcServer.shutdown(message)
+                                }
+                            }, connection)
+                        )
+                    }
+                }
                 synchronized(handlers) { handlers.add(handler) }
 
                 backgroundScope.launch {
@@ -63,7 +64,7 @@ class IpcServer(
 
                                 ClientMessage.SpecializedCase.PING -> {
                                     serverTarget.send(buildServerMessage {
-                                        pong = ServerMessage.Pong.getDefaultInstance()
+                                        pong = ServerMessage.Pong.newBuilder().setId(clientMessage.ping.id).build()
                                     })
                                 }
                                 ClientMessage.SpecializedCase.DISCONNECT -> {

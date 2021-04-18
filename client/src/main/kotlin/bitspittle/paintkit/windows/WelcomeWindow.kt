@@ -19,8 +19,10 @@ import bitspittle.paintkit.l18n._t
 import bitspittle.paintkit.layout.CommonWidgets
 import bitspittle.paintkit.layout.Padding
 import bitspittle.paintkit.layout.Shapes
+import bitspittle.paintkit.model.graphics.Size
 import bitspittle.paintkit.theme.PaintKitTheme
 import kotlinx.coroutines.launch
+import java.util.*
 
 fun WelcomeWindow(navigator: WindowNavigator) = Window(
     title = _t("welcome.window.title", _t("paintkit.title")),
@@ -59,12 +61,22 @@ fun ConnectingMessage(onConnected: (Session) -> Unit, onFailed: (String) -> Unit
     val connectingScope = rememberCoroutineScope()
     connectingScope.launch {
         try {
+            val adminId = UUID.randomUUID()
+            // TODO: Collect size & other params from the user
+            val size = Size(800, 600)
             val client = PaintKitClient { ctx ->
-                val handler = ClientHandlerImpl(ctx)
-                onConnected(handler)
+                val handler = ClientHandlerImpl(adminId, ctx)
+                connectingScope.launch {
+                    handler.createCanvas(size)
+                    onConnected(handler)
+                }
                 handler
             }
-            client.start(Settings.debugPort)
+            Settings.debugPort?.let { port ->
+                client.start(port)
+            } ?: run {
+                client.start(adminId)
+            }
         }
         catch (ex: Exception) {
             onFailed(ex.toString())

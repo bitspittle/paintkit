@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.google.protobuf.java)
     implementation(project(":ipc"))
     implementation(project(":api"))
+    implementation(project(":model"))
 }
 
 val mainClass = "MainKt"
