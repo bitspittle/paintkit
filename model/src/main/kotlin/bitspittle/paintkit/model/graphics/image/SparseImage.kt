@@ -14,13 +14,13 @@ class SparseImage(override val size: Size, val chunkSize: Size = size / 40) : Mu
     private val numChunksY = size.h / chunkSize.h + if (size.h % chunkSize.h != 0) 1 else 0
 
     private val chunks = Array<MutableImage?>(numChunksX * numChunksY) { null }
-    private operator fun Array<MutableImage?>.get(x: Int, y: Int) = chunks[y * this@SparseImage.size.w + x]
+    private operator fun Array<MutableImage?>.get(x: Int, y: Int) = chunks[y * numChunksX + x]
     private operator fun Array<MutableImage?>.set(x: Int, y: Int, chunk: MutableImage) {
-        chunks[y * this@SparseImage.size.h + x] = chunk
+        chunks[y * numChunksX + x] = chunk
     }
 
     override fun getColor(pt: Pt): Color {
-        require(chunkSize.toRect().contains(pt))
+        require(size.toRect().contains(pt))
         val chunkX = pt.x / chunkSize.w
         val chunkY = pt.y / chunkSize.h
         val relX = pt.x % chunkSize.w
@@ -31,7 +31,7 @@ class SparseImage(override val size: Size, val chunkSize: Size = size / 40) : Mu
     }
 
     override fun setColor(pt: Pt, color: Color) {
-        require(chunkSize.toRect().contains(pt))
+        require(size.toRect().contains(pt))
         val chunkX = pt.x / chunkSize.w
         val chunkY = pt.y / chunkSize.h
         val relX = pt.x % chunkSize.w

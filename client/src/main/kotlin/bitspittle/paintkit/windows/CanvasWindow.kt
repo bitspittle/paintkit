@@ -11,18 +11,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.window.Menu
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.MenuItem
 import bitspittle.paintkit.client.Session
+import bitspittle.paintkit.image.PendingImages
 import bitspittle.paintkit.input.MouseButton
 import bitspittle.paintkit.input.MouseHandler
-import bitspittle.paintkit.input.MouseState
 import bitspittle.paintkit.input.withMouseHandler
 import bitspittle.paintkit.l18n._t
+import bitspittle.paintkit.model.graphics.Colors
+import bitspittle.paintkit.model.graphics.Line
+import bitspittle.paintkit.model.graphics.Pt
+import bitspittle.paintkit.model.graphics.image.SparseImage
+import bitspittle.paintkit.model.graphics.image.pixels
 import bitspittle.paintkit.theme.PaintKitTheme
+import kotlinx.coroutines.CoroutineScope
+import java.util.*
 
 fun CanvasWindow(navigator: WindowNavigator, session: Session) {
     val initialCanvas = session.canvases.first()
@@ -53,34 +61,63 @@ fun CanvasWindow(navigator: WindowNavigator, session: Session) {
                     .fillMaxSize()
                     .background(Color.LightGray)
             ) {
-                var mouseState: MouseState by remember { mutableStateOf(MouseState.Released) }
+                var recomposeForcer by remember { mutableStateOf(UUID.randomUUID()) }
+                val pendingImages = remember {
+                    PendingImages(
+                        CoroutineScope(session.clientContext.environment.dispatcher),
+                        session.userId,
+                        session.clientContext.connection,
+                        onRejected = { recomposeForcer = UUID.randomUUID() }
+                    )
+                }
                 Canvas(
                     modifier = Modifier
                         .background(Color.White)
                         .fillMaxSize(0.9f)
                         .align(Alignment.Center)
                         .withMouseHandler(object : MouseHandler {
+                            private var pendingImage: SparseImage? = null
+                            private var lastOffset: IntOffset? = null
+                            // TODO: Move this logic into draw scope when we have width x height
+                            private fun IntOffset.toPt(): Pt = Pt(x, y)
                             override fun onButtonPress(button: MouseButton, offset: IntOffset) {
-                                mouseState = MouseState.Pressed(button, offset)
-                            }
-
-                            override fun onButtonRelease(button: MouseButton) {
-                                mouseState = MouseState.Released
+                                if (button == MouseButton.LEFT) {
+                                    lastOffset = offset
+                                    pendingImage = SparseImage(initialCanvas.image.size)
+                                    pendingImage!!.setColor(offset.toPt(), Colors.BLACK)
+                                    recomposeForcer = UUID.randomUUID()
+                                }
                             }
 
                             override fun onMove(offset: IntOffset) {
-                                mouseState = MouseState.Moved(offset)
+                                pendingImage?.let { pendingImage ->
+                                    val l = Line(lastOffset!!.toPt(), offset.toPt())
+                                    l.points.forEach { pt -> pendingImage.setColor(pt, Colors.BLACK) }
+                                    lastOffset = offset
+                                    recomposeForcer = UUID.randomUUID()
+                                }
+                            }
+
+                            override fun onButtonRelease(button: MouseButton) {
+                                pendingImage?.let {
+                                    pendingImages.push(initialCanvas.imageId, it)
+                                    pendingImage = null
+                                    recomposeForcer = UUID.randomUUID()
+                                }
                             }
                         })
                 ) {
                     val canvasWidth = size.width
                     val canvasHeight = size.height
 
-                    drawLine(
-                        start = Offset(x = canvasWidth, y = 0f),
-                        end = Offset(x = 0f, y = canvasHeight),
-                        color = Color.Blue
-                    )
+                    // Looks like no-op but forces recompose
+                    println(recomposeForcer)
+
+                    val offsets = pendingImages.images
+                        .flatMap { it.pixels }
+                        .map { pixel -> Offset(pixel.pt.x.toFloat(), pixel.pt.y.toFloat()) }
+
+                    drawPoints(offsets, PointMode.Points, Color.Black)
                 }
             }
         }
